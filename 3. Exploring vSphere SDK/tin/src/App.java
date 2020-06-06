@@ -35,10 +35,10 @@ public class App {
             ServiceContent serviceContent = vimPort.retrieveServiceContent(serviceInstance);
             vimPort.login(serviceContent.getSessionManager(), user, password, null);
         
-            // print out the product name, server type, and product version
-            System.out.println(serviceContent.getAbout().getFullName());
-            System.out.println("Server type is " + serviceContent.getAbout().getApiType());
-            System.out.println("API version is " + serviceContent.getAbout().getVersion());
+            // print basic info
+            System.out.println(serviceContent.getAbout().getLicenseProductName());
+            System.out.println("Version: " + serviceContent.getAbout().getVersion());
+            System.out.println("Build: " + serviceContent.getAbout().getBuild());
         
             vimPort.logout(serviceContent.getSessionManager());
         
