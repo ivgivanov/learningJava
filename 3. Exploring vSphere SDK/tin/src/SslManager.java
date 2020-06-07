@@ -7,7 +7,7 @@ import javax.net.ssl.SSLSession;
 
 public class SslManager {
 
-    private static class TrustAllTrustManager implements javax.net.ssl.TrustManager, javax.net.ssl.X509TrustManager {
+    private static class TrustAllTrustManager implements javax.net.ssl.X509TrustManager {
 
         public java.security.cert.X509Certificate[] getAcceptedIssuers() {
             return null;
