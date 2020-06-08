@@ -1,6 +1,8 @@
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import javax.xml.ws.BindingProvider;
 
@@ -36,9 +38,11 @@ public class App {
             user = args[1];
             password = args[2];
         } else {
-            url = "https://bellatrix-vc67.solar.system/sdk/vimService";
-            user = "rc_service@solar.system";
-            password = "S3rv!ceUsr4RC@NonExp";
+            App readProps = new App();
+            Properties confProps = readProps.getPropValue("config.properties");
+            url = confProps.getProperty("url");
+            user = confProps.getProperty("user");
+            password = confProps.getProperty("password");
         }
 
         VimService vimService = new VimService();
@@ -170,5 +174,12 @@ public class App {
 
     }
 
+    public Properties getPropValue(String fileName) throws IOException {
+
+        Properties prop = new Properties();
+        prop.load(getClass().getClassLoader().getResourceAsStream(fileName));
+        return prop;
+
+    }
 
 }
