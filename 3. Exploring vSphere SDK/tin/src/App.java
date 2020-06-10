@@ -6,9 +6,12 @@ import java.util.Properties;
 
 import javax.xml.ws.BindingProvider;
 
+import com.vmware.vim25.AlreadyExistsFaultMsg;
+import com.vmware.vim25.AuthorizationRole;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.InvalidLocaleFaultMsg;
 import com.vmware.vim25.InvalidLoginFaultMsg;
+import com.vmware.vim25.InvalidNameFaultMsg;
 import com.vmware.vim25.InvalidPropertyFaultMsg;
 import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.ObjectContent;
@@ -19,6 +22,7 @@ import com.vmware.vim25.RetrieveOptions;
 import com.vmware.vim25.RetrieveResult;
 import com.vmware.vim25.RuntimeFaultFaultMsg;
 import com.vmware.vim25.ServiceContent;
+import com.vmware.vim25.ServiceManagerServiceInfo;
 import com.vmware.vim25.VimPortType;
 import com.vmware.vim25.VimService;
 import com.vmware.vim25.VirtualDevice;
@@ -32,7 +36,6 @@ public class App {
         String user = "";
         String password = "";
 
-        
         if (args.length == 3) {
             url = "https://" + args[0] + "/sdk/vimService";
             user = args[1];
@@ -64,32 +67,53 @@ public class App {
             vimPort.login(serviceContent.getSessionManager(), user, password, null);
 
             // print basic info
-            //System.out.println(serviceContent.getAbout().getLicenseProductName());
-            //System.out.println("Version: " + serviceContent.getAbout().getVersion());
-            //System.out.println("Build: " + serviceContent.getAbout().getBuild());
+            // System.out.println(serviceContent.getAbout().getLicenseProductName());
+            // System.out.println("Version: " + serviceContent.getAbout().getVersion());
+            // System.out.println("Build: " + serviceContent.getAbout().getBuild());
 
-            //using property collector
+            // using property collector
 
             ManagedObjectReference propertyCollector = serviceContent.getPropertyCollector();
 
             // Get the reference to the root folder
-            //ManagedObjectReference rootFolder = serviceContent.getRootFolder();
-            //collectProperties(vimPort, serviceContent, rootFolder);
+            // ManagedObjectReference rootFolder = serviceContent.getRootFolder();
+            // collectProperties(vimPort, serviceContent, rootFolder);
 
             // VM info
-            ManagedObjectReference vm = new ManagedObjectReference();
-            vm.setType("VirtualMachine");
-            vm.setValue("vm-89");
-            VirtualMachineConfigInfo vmConfig = getVmConfig(vimPort, propertyCollector, vm);
-            System.out.println("VM name: "+vmConfig.getName());
-            System.out.println("VM hw version: "+vmConfig.getVersion());
-            List<VirtualDevice> vmDevices = vmConfig.getHardware().getDevice();
-            for (VirtualDevice vmDevice : vmDevices) {
-                if (Class.forName("com.vmware.vim25.VirtualEthernetCard").isAssignableFrom(vmDevice.getClass())) {
-                    VirtualEthernetCard vmEthCard = (VirtualEthernetCard)vmDevice;
-                    System.out.println(vmDevice.getDeviceInfo().getLabel()+", MAC: "+vmEthCard.getMacAddress());
-                }
-            }
+            /*
+             * ManagedObjectReference vm = new ManagedObjectReference();
+             * vm.setType("VirtualMachine"); vm.setValue("vm-89"); VirtualMachineConfigInfo
+             * vmConfig = getVmConfig(vimPort, propertyCollector, vm);
+             * System.out.println("VM name: "+vmConfig.getName());
+             * System.out.println("VM hw version: "+vmConfig.getVersion());
+             * List<VirtualDevice> vmDevices = vmConfig.getHardware().getDevice(); for
+             * (VirtualDevice vmDevice : vmDevices) { if
+             * (Class.forName("com.vmware.vim25.VirtualEthernetCard").isAssignableFrom(
+             * vmDevice.getClass())) { VirtualEthernetCard vmEthCard =
+             * (VirtualEthernetCard)vmDevice;
+             * System.out.println(vmDevice.getDeviceInfo().getLabel()+", MAC: "+vmEthCard.
+             * getMacAddress()); } }
+             */
+
+            /*ManagedObjectReference obj = vimPort.findByInventoryPath(serviceContent.getSearchIndex(),
+                    "Bellatrix/host/BN/bellatrix-esxi67-5.solar.system");
+            System.out.println(obj.getType());*/
+
+            //Create role with privileges 
+            String roleName = "ServiceAccounts";
+            List<String> privileges = new ArrayList<String>();
+            privileges.add("Global.Settings");
+            privileges.add("Host.Cim.CimInteraction");
+            privileges.add("Host.Config.AdvancedConfig");
+            privileges.add("Host.Config.Firmware");
+            privileges.add("Host.Config.NetService");
+            privileges.add("Host.Config.Settings");
+            privileges.add("VirtualMachine.Config.AdvancedConfig");
+            privileges.add("Extension.Register");
+            privileges.add("Extension.Unregister");
+            privileges.add("Extension.Update");
+
+            int roleId = createRole(vimPort, serviceContent, roleName, privileges);
 
             vimPort.logout(serviceContent.getSessionManager());
 
@@ -100,6 +124,30 @@ public class App {
         } catch (InvalidLoginFaultMsg e) {
             e.printStackTrace();
         }
+
+    }
+
+    public static int createRole(VimPortType vimPort, ServiceContent serviceContent, String name, List<String> privs) {
+        
+        int roleId = 0;
+        try {
+            roleId = vimPort.addAuthorizationRole(serviceContent.getAuthorizationManager(), name, privs);
+            System.out.println("'"+name+"'"+" role created! Privileges assinged:");
+            for (String privilege : privs ) {
+                System.out.println(privilege);
+            }
+            return roleId;
+        } catch (AlreadyExistsFaultMsg e) {
+            System.out.println("Role with this name already exists");
+            //e.printStackTrace();
+        } catch (InvalidNameFaultMsg e) {
+            System.out.println("Invalid role name");
+            //e.printStackTrace();
+        } catch (RuntimeFaultFaultMsg e) {
+            System.out.println("An error occured");
+            //e.printStackTrace();
+        }
+        return roleId;
 
     }
 
