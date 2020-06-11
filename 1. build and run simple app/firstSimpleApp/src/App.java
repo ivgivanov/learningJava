@@ -9,9 +9,15 @@ import javax.swing.WindowConstants;
 
 public class App {
     public static void main(String[] args) throws Exception {
-        JFrame application = createGUI();
-        application.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        application.setVisible(true);
+        //JFrame application = createGUI();
+        //application.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        //application.setVisible(true);
+
+        Author author = new Author();
+        author.setName("John");
+        author.setAge(51);
+
+        System.out.println(author.getName()+" - "+author.getAge());
     }
 
     private static JFrame createGUI() {
