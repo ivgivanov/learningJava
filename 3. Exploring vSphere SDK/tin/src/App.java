@@ -110,10 +110,17 @@ public class App {
             privileges.add("Host.Config.Settings");
             privileges.add("VirtualMachine.Config.AdvancedConfig");
             privileges.add("Extension.Register");
-            privileges.add("Extension.Unregister");
             privileges.add("Extension.Update");
 
-            int roleId = createRole(vimPort, serviceContent, roleName, privileges);
+            AccessControlManager accessControl = new AccessControlManager();
+            
+            //int newRoleId =  accessControl.createRole(vimPort, serviceContent, roleName, privileges);
+
+            privileges.add("Extension.Unregister");
+            int roleId = accessControl.getRoleId(vimPort, serviceContent, roleName);
+            System.out.println(roleId);
+            accessControl.updateRole(vimPort, serviceContent, roleId, roleName, privileges);
+
 
             vimPort.logout(serviceContent.getSessionManager());
 
@@ -124,30 +131,6 @@ public class App {
         } catch (InvalidLoginFaultMsg e) {
             e.printStackTrace();
         }
-
-    }
-
-    public static int createRole(VimPortType vimPort, ServiceContent serviceContent, String name, List<String> privs) {
-        
-        int roleId = 0;
-        try {
-            roleId = vimPort.addAuthorizationRole(serviceContent.getAuthorizationManager(), name, privs);
-            System.out.println("'"+name+"'"+" role created! Privileges assinged:");
-            for (String privilege : privs ) {
-                System.out.println(privilege);
-            }
-            return roleId;
-        } catch (AlreadyExistsFaultMsg e) {
-            System.out.println("Role with this name already exists");
-            //e.printStackTrace();
-        } catch (InvalidNameFaultMsg e) {
-            System.out.println("Invalid role name");
-            //e.printStackTrace();
-        } catch (RuntimeFaultFaultMsg e) {
-            System.out.println("An error occured");
-            //e.printStackTrace();
-        }
-        return roleId;
 
     }
 
