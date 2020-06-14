@@ -6,27 +6,22 @@ import java.util.Properties;
 
 import javax.xml.ws.BindingProvider;
 
-import com.vmware.vim25.AlreadyExistsFaultMsg;
-import com.vmware.vim25.AuthorizationRole;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.InvalidLocaleFaultMsg;
 import com.vmware.vim25.InvalidLoginFaultMsg;
-import com.vmware.vim25.InvalidNameFaultMsg;
 import com.vmware.vim25.InvalidPropertyFaultMsg;
 import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.ObjectSpec;
+import com.vmware.vim25.Permission;
 import com.vmware.vim25.PropertyFilterSpec;
 import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.RetrieveOptions;
 import com.vmware.vim25.RetrieveResult;
 import com.vmware.vim25.RuntimeFaultFaultMsg;
 import com.vmware.vim25.ServiceContent;
-import com.vmware.vim25.ServiceManagerServiceInfo;
 import com.vmware.vim25.VimPortType;
 import com.vmware.vim25.VimService;
-import com.vmware.vim25.VirtualDevice;
-import com.vmware.vim25.VirtualEthernetCard;
 import com.vmware.vim25.VirtualMachineConfigInfo;
 
 public class App {
@@ -100,6 +95,7 @@ public class App {
             System.out.println(obj.getType());*/
 
             //Create role with privileges 
+            
             String roleName = "ServiceAccounts";
             List<String> privileges = new ArrayList<String>();
             privileges.add("Global.Settings");
@@ -110,16 +106,26 @@ public class App {
             privileges.add("Host.Config.Settings");
             privileges.add("VirtualMachine.Config.AdvancedConfig");
             privileges.add("Extension.Register");
+            privileges.add("Extension.Unregister");
             privileges.add("Extension.Update");
 
             AccessControlManager accessControl = new AccessControlManager();
             
             //int newRoleId =  accessControl.createRole(vimPort, serviceContent, roleName, privileges);
 
-            privileges.add("Extension.Unregister");
             int roleId = accessControl.getRoleId(vimPort, serviceContent, roleName);
             System.out.println(roleId);
-            accessControl.updateRole(vimPort, serviceContent, roleId, roleName, privileges);
+            //accessControl.updateRole(vimPort, serviceContent, roleId, roleName, privileges);
+
+            ManagedObjectReference myVM = new ManagedObjectReference();
+            myVM.setType("VirtualMachine");
+            myVM.setValue("vm-89");
+
+            List<Permission> permissions = new ArrayList<Permission>();
+            permissions.add(accessControl.buildPermission(roleId, "Domain\\Service users", true, true));
+            permissions.add(accessControl.buildPermission(roleId, "local_user", false, true));
+
+            vimPort.setEntityPermissions(serviceContent.getAuthorizationManager(), myVM, permissions);
 
 
             vimPort.logout(serviceContent.getSessionManager());

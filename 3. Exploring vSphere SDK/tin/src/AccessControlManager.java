@@ -1,4 +1,3 @@
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,6 +11,7 @@ import com.vmware.vim25.ManagedObjectReference;
 import com.vmware.vim25.NotFoundFaultMsg;
 import com.vmware.vim25.ObjectContent;
 import com.vmware.vim25.ObjectSpec;
+import com.vmware.vim25.Permission;
 import com.vmware.vim25.PropertyFilterSpec;
 import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.RetrieveOptions;
@@ -88,14 +88,15 @@ public class AccessControlManager {
         propertyFilterSpecList.add(propertyFilterSpec);
 
         RetrieveOptions retrieveOptions = new RetrieveOptions();
-        RetrieveResult result = vimPort.retrievePropertiesEx(propertyCollector, propertyFilterSpecList, retrieveOptions);
+        RetrieveResult result = vimPort.retrievePropertiesEx(propertyCollector, propertyFilterSpecList,
+                retrieveOptions);
 
         if (result != null) {
 
             for (ObjectContent objectContent : result.getObjects()) {
                 List<DynamicProperty> properties = objectContent.getPropSet();
                 if (properties.size() == 1) {
-                    ArrayOfAuthorizationRole authRolesArray = (ArrayOfAuthorizationRole)properties.get(0).getVal();
+                    ArrayOfAuthorizationRole authRolesArray = (ArrayOfAuthorizationRole) properties.get(0).getVal();
                     List<AuthorizationRole> authRoles = authRolesArray.getAuthorizationRole();
                     for (AuthorizationRole role : authRoles) {
                         if (role.getName().equals(name)) {
@@ -106,9 +107,22 @@ public class AccessControlManager {
                     return 0;
                 }
             }
-        } 
+        }
 
         return 0;
+    }
+
+    public Permission buildPermission(int roleId, String principal, boolean group, boolean propagate) {
+        Permission permission = new Permission();
+
+        permission.setEntity(null);
+        permission.setRoleId(roleId);
+        permission.setPrincipal(principal);
+        permission.setGroup(group);
+        permission.setPropagate(propagate);
+
+        return permission;
+
     }
     
 }
