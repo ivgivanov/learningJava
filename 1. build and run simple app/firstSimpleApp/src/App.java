@@ -1,5 +1,7 @@
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -16,8 +18,18 @@ public class App {
         Author author = new Author();
         author.setName("John");
         author.setAge(51);
+        author.setPseudonym("The author");
+        List<String> books= new ArrayList<String>();
+        books.add("Book1");
+        books.add("Book2");
+        
+        author.setBooks(books);
+        author.addBook("Last Novel");
 
-        System.out.println(author.getName()+" - "+author.getAge());
+        System.out.println("Name: "+author.getName());
+        System.out.println("Age: "+author.getAge());
+        System.out.println("Pseudonym: "+author.getPseudonym());
+        System.out.println("Books: "+author.getBooks());
     }
 
     private static JFrame createGUI() {

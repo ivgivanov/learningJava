@@ -1,21 +1,33 @@
-public class Author {
-    private String name;
-    private int age;
+import java.util.ArrayList;
+import java.util.List;
 
-    public String getName() {
-        return name;
+public class Author extends Human {
+    private String pseudonym;
+    private List<String> books = new ArrayList<String>();
+
+    public String getPseudonym() {
+        return pseudonym;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setPseudonym(String pseudonym) {
+        this.pseudonym = pseudonym;
     }
 
-    public int getAge() {
-        return age;
+    public List<String> getBooks() {
+        return books;
     }
 
-    public void setAge(int age) {
-        this.age = age;
+    public void setBooks(List<String> books) {
+        this.books = books;
+    }
+
+    public void addBook(String book) {
+        this.books.add(book);
     }
     
+    @Override
+    public String getName() {
+        return "author " + super.getName();
+    }
+
 }
