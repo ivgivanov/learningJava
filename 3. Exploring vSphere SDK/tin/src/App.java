@@ -6,6 +6,7 @@ import java.util.Properties;
 
 import javax.xml.ws.BindingProvider;
 
+import com.vmware.vim25.ArrayOfManagedObjectReference;
 import com.vmware.vim25.DynamicProperty;
 import com.vmware.vim25.InvalidLocaleFaultMsg;
 import com.vmware.vim25.InvalidLoginFaultMsg;
@@ -19,7 +20,9 @@ import com.vmware.vim25.PropertySpec;
 import com.vmware.vim25.RetrieveOptions;
 import com.vmware.vim25.RetrieveResult;
 import com.vmware.vim25.RuntimeFaultFaultMsg;
+import com.vmware.vim25.SelectionSpec;
 import com.vmware.vim25.ServiceContent;
+import com.vmware.vim25.TraversalSpec;
 import com.vmware.vim25.VimPortType;
 import com.vmware.vim25.VimService;
 import com.vmware.vim25.VirtualMachineConfigInfo;
@@ -57,6 +60,7 @@ public class App {
         serviceInstance.setType("ServiceInstance");
         serviceInstance.setValue("ServiceInstance");
 
+
         try {
             ServiceContent serviceContent = vimPort.retrieveServiceContent(serviceInstance);
             vimPort.login(serviceContent.getSessionManager(), user, password, null);
@@ -68,11 +72,14 @@ public class App {
 
             // using property collector
 
-            ManagedObjectReference propertyCollector = serviceContent.getPropertyCollector();
+            //ManagedObjectReference propertyCollector = serviceContent.getPropertyCollector();
 
             // Get the reference to the root folder
-            // ManagedObjectReference rootFolder = serviceContent.getRootFolder();
-            // collectProperties(vimPort, serviceContent, rootFolder);
+            ManagedObjectReference rootFolder = serviceContent.getRootFolder();
+            ManagedObjectReference vmFolder = new ManagedObjectReference();
+            vmFolder.setType("Folder");
+            vmFolder.setValue("group-v90");
+            collectProperties(vimPort, serviceContent, vmFolder);
 
             // VM info
             /*
@@ -94,7 +101,8 @@ public class App {
                     "Bellatrix/host/BN/bellatrix-esxi67-5.solar.system");
             System.out.println(obj.getType());*/
 
-            //Create role with privileges 
+            //Create role with privileges, get role, update role, assign role
+            /*
             
             String roleName = "ServiceAccounts";
             List<String> privileges = new ArrayList<String>();
@@ -127,6 +135,9 @@ public class App {
 
             vimPort.setEntityPermissions(serviceContent.getAuthorizationManager(), myVM, permissions);
 
+            */
+
+            
 
             vimPort.logout(serviceContent.getSessionManager());
 
@@ -184,14 +195,17 @@ public class App {
 
         ObjectSpec objectSpec = new ObjectSpec();
         objectSpec.setObj(moid);
+        objectSpec.getSelectSet().addAll(buildFullTraversal());
+        objectSpec.setSkip(false);
 
-        PropertySpec propertySpec = new PropertySpec();
-        propertySpec.setType(moid.getType());
-        propertySpec.setAll(true);
+        PropertySpec propertySpecVM = new PropertySpec();
+        propertySpecVM.setType("VirtualMachine");
+        propertySpecVM.getPathSet().add("name");
+        propertySpecVM.setAll(false);
 
         PropertyFilterSpec propertyFilterSpec = new PropertyFilterSpec();
         propertyFilterSpec.getObjectSet().add(objectSpec);
-        propertyFilterSpec.getPropSet().add(propertySpec);
+        propertyFilterSpec.getPropSet().add(propertySpecVM);
 
         List<PropertyFilterSpec> propertyFilterSpecList = new ArrayList<PropertyFilterSpec>();
         propertyFilterSpecList.add(propertyFilterSpec);
@@ -201,6 +215,7 @@ public class App {
         RetrieveResult result = vimPort.retrievePropertiesEx(propertyCollector, propertyFilterSpecList, retrieveOptions);
 
         if (result != null) {
+            System.out.println("All VMs under: "+moid.getValue());
             for (ObjectContent objectContent : result.getObjects()) {
                 List<DynamicProperty> properties = objectContent.getPropSet();
                 for (DynamicProperty property : properties) {
@@ -217,6 +232,120 @@ public class App {
         prop.load(getClass().getClassLoader().getResourceAsStream(fileName));
         return prop;
 
+    }
+
+    public static List<SelectionSpec> buildFullTraversal() {
+        // Terminal traversal specs
+
+        // RP -> VM
+        TraversalSpec rpToVm = new TraversalSpec();
+        rpToVm.setName("rpToVm");
+        rpToVm.setType("ResourcePool");
+        rpToVm.setPath("vm");
+        rpToVm.setSkip(Boolean.FALSE);
+
+        // vApp -> VM
+        TraversalSpec vAppToVM = new TraversalSpec();
+        vAppToVM.setName("vAppToVM");
+        vAppToVM.setType("VirtualApp");
+        vAppToVM.setPath("vm");
+
+        // HostSystem -> VM
+        TraversalSpec hToVm = new TraversalSpec();
+        hToVm.setType("HostSystem");
+        hToVm.setPath("vm");
+        hToVm.setName("hToVm");
+        hToVm.getSelectSet().add(getSelectionSpec("VisitFolders"));
+        hToVm.setSkip(Boolean.FALSE);
+
+        // DC -> DS
+        TraversalSpec dcToDs = new TraversalSpec();
+        dcToDs.setType("Datacenter");
+        dcToDs.setPath("datastore");
+        dcToDs.setName("dcToDs");
+        dcToDs.setSkip(Boolean.FALSE);
+
+        // Recurse through all ResourcePools
+        TraversalSpec rpToRp = new TraversalSpec();
+        rpToRp.setType("ResourcePool");
+        rpToRp.setPath("resourcePool");
+        rpToRp.setSkip(Boolean.FALSE);
+        rpToRp.setName("rpToRp");
+        rpToRp.getSelectSet().add(getSelectionSpec("rpToRp"));
+
+        TraversalSpec crToRp = new TraversalSpec();
+        crToRp.setType("ComputeResource");
+        crToRp.setPath("resourcePool");
+        crToRp.setSkip(Boolean.FALSE);
+        crToRp.setName("crToRp");
+        crToRp.getSelectSet().add(getSelectionSpec("rpToRp"));
+
+        TraversalSpec crToH = new TraversalSpec();
+        crToH.setSkip(Boolean.FALSE);
+        crToH.setType("ComputeResource");
+        crToH.setPath("host");
+        crToH.setName("crToH");
+
+        TraversalSpec dcToHf = new TraversalSpec();
+        dcToHf.setSkip(Boolean.FALSE);
+        dcToHf.setType("Datacenter");
+        dcToHf.setPath("hostFolder");
+        dcToHf.setName("dcToHf");
+        dcToHf.getSelectSet().add(getSelectionSpec("VisitFolders"));
+
+        TraversalSpec vAppToRp = new TraversalSpec();
+        vAppToRp.setName("vAppToRp");
+        vAppToRp.setType("VirtualApp");
+        vAppToRp.setPath("resourcePool");
+        vAppToRp.getSelectSet().add(getSelectionSpec("rpToRp"));
+
+        TraversalSpec dcToVmf = new TraversalSpec();
+        dcToVmf.setType("Datacenter");
+        dcToVmf.setSkip(Boolean.FALSE);
+        dcToVmf.setPath("vmFolder");
+        dcToVmf.setName("dcToVmf");
+        dcToVmf.getSelectSet().add(getSelectionSpec("VisitFolders"));
+
+        // For Folder -> Folder recursion
+        TraversalSpec visitFolders = new TraversalSpec();
+        visitFolders.setType("Folder");
+        visitFolders.setPath("childEntity");
+        visitFolders.setSkip(Boolean.FALSE);
+        visitFolders.setName("VisitFolders");
+        List<SelectionSpec> sspecarrvf = new ArrayList<SelectionSpec>();
+        sspecarrvf.add(getSelectionSpec("crToRp"));
+        sspecarrvf.add(getSelectionSpec("crToH"));
+        sspecarrvf.add(getSelectionSpec("dcToVmf"));
+        sspecarrvf.add(getSelectionSpec("dcToHf"));
+        sspecarrvf.add(getSelectionSpec("vAppToRp"));
+        sspecarrvf.add(getSelectionSpec("vAppToVM"));
+        sspecarrvf.add(getSelectionSpec("dcToDs"));
+        sspecarrvf.add(getSelectionSpec("hToVm"));
+        sspecarrvf.add(getSelectionSpec("rpToVm"));
+        sspecarrvf.add(getSelectionSpec("VisitFolders"));
+
+        visitFolders.getSelectSet().addAll(sspecarrvf);
+
+        List<SelectionSpec> resultspec = new ArrayList<SelectionSpec>();
+        resultspec.add(visitFolders);
+        resultspec.add(crToRp);
+        resultspec.add(crToH);
+        resultspec.add(dcToVmf);
+        resultspec.add(dcToHf);
+        resultspec.add(vAppToRp);
+        resultspec.add(vAppToVM);
+        resultspec.add(dcToDs);
+        resultspec.add(hToVm);
+        resultspec.add(rpToVm);
+        resultspec.add(rpToRp);
+
+        return resultspec;
+    }
+
+    public static SelectionSpec getSelectionSpec(String name) {
+        SelectionSpec genericSpec = new SelectionSpec();
+        genericSpec.setName(name);
+        return genericSpec;
     }
 
 }
