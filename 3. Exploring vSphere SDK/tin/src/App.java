@@ -78,8 +78,20 @@ public class App {
             ManagedObjectReference rootFolder = serviceContent.getRootFolder();
             ManagedObjectReference vmFolder = new ManagedObjectReference();
             vmFolder.setType("Folder");
-            vmFolder.setValue("group-v90");
-            collectProperties(vimPort, serviceContent, vmFolder);
+            vmFolder.setValue("group-v3");
+            ManagedObjectReference dsFolder = new ManagedObjectReference();
+            dsFolder.setType("Folder");
+            dsFolder.setValue("group-s5");
+            ManagedObjectReference host = new ManagedObjectReference();
+            host.setType("HostSystem");
+            host.setValue("host-60");
+            ManagedObjectReference dc = new ManagedObjectReference();
+            dc.setType("Datacenter");
+            dc.setValue("datacenter-2");
+            ManagedObjectReference mainFolder = new ManagedObjectReference();
+            mainFolder.setType("Folder");
+            mainFolder.setValue("group-d1");
+            collectProperties(vimPort, serviceContent, mainFolder);
 
             // VM info
             /*
@@ -195,7 +207,7 @@ public class App {
 
         ObjectSpec objectSpec = new ObjectSpec();
         objectSpec.setObj(moid);
-        objectSpec.getSelectSet().addAll(buildFullTraversal());
+        objectSpec.getSelectSet().addAll(myTraversal());
         objectSpec.setSkip(false);
 
         PropertySpec propertySpecVM = new PropertySpec();
@@ -203,9 +215,16 @@ public class App {
         propertySpecVM.getPathSet().add("name");
         propertySpecVM.setAll(false);
 
+        PropertySpec propertySpecDs = new PropertySpec();
+        propertySpecDs.setType("Datastore");
+        propertySpecDs.getPathSet().add("name");
+        propertySpecDs.setAll(false);
+
+
         PropertyFilterSpec propertyFilterSpec = new PropertyFilterSpec();
         propertyFilterSpec.getObjectSet().add(objectSpec);
         propertyFilterSpec.getPropSet().add(propertySpecVM);
+        propertyFilterSpec.getPropSet().add(propertySpecDs);
 
         List<PropertyFilterSpec> propertyFilterSpecList = new ArrayList<PropertyFilterSpec>();
         propertyFilterSpecList.add(propertyFilterSpec);
@@ -215,7 +234,7 @@ public class App {
         RetrieveResult result = vimPort.retrievePropertiesEx(propertyCollector, propertyFilterSpecList, retrieveOptions);
 
         if (result != null) {
-            System.out.println("All VMs under: "+moid.getValue());
+            //System.out.println("All VMs under: "+moid.getValue());
             for (ObjectContent objectContent : result.getObjects()) {
                 List<DynamicProperty> properties = objectContent.getPropSet();
                 for (DynamicProperty property : properties) {
@@ -265,6 +284,13 @@ public class App {
         dcToDs.setName("dcToDs");
         dcToDs.setSkip(Boolean.FALSE);
 
+        // DC -> DSFolder
+        TraversalSpec dcToDsFolder = new TraversalSpec();
+        dcToDsFolder.setType("Datacenter");
+        dcToDsFolder.setPath("datastoreFolder");
+        dcToDsFolder.setName("dcToDsFolder");
+        dcToDsFolder.setSkip(Boolean.FALSE);
+
         // Recurse through all ResourcePools
         TraversalSpec rpToRp = new TraversalSpec();
         rpToRp.setType("ResourcePool");
@@ -312,6 +338,7 @@ public class App {
         visitFolders.setPath("childEntity");
         visitFolders.setSkip(Boolean.FALSE);
         visitFolders.setName("VisitFolders");
+
         List<SelectionSpec> sspecarrvf = new ArrayList<SelectionSpec>();
         sspecarrvf.add(getSelectionSpec("crToRp"));
         sspecarrvf.add(getSelectionSpec("crToH"));
@@ -320,6 +347,7 @@ public class App {
         sspecarrvf.add(getSelectionSpec("vAppToRp"));
         sspecarrvf.add(getSelectionSpec("vAppToVM"));
         sspecarrvf.add(getSelectionSpec("dcToDs"));
+        sspecarrvf.add(getSelectionSpec("dcToDsFolder"));
         sspecarrvf.add(getSelectionSpec("hToVm"));
         sspecarrvf.add(getSelectionSpec("rpToVm"));
         sspecarrvf.add(getSelectionSpec("VisitFolders"));
@@ -335,11 +363,58 @@ public class App {
         resultspec.add(vAppToRp);
         resultspec.add(vAppToVM);
         resultspec.add(dcToDs);
+        resultspec.add(dcToDsFolder);
         resultspec.add(hToVm);
         resultspec.add(rpToVm);
         resultspec.add(rpToRp);
 
         return resultspec;
+    }
+
+    public static List<SelectionSpec> myTraversal() {
+
+        TraversalSpec hostToVM = new TraversalSpec();
+        hostToVM.setName("hostToVM");
+        hostToVM.setType("HostSystem");
+        hostToVM.setPath("vm");
+        hostToVM.setSkip(false);
+
+        TraversalSpec folderToChildEntity = new TraversalSpec();
+        folderToChildEntity.setName("folderToChildEntity");
+        folderToChildEntity.setType("Folder");
+        folderToChildEntity.setPath("childEntity");
+        folderToChildEntity.setSkip(Boolean.FALSE);
+
+        /*List<SelectionSpec> sspecarrvf = new ArrayList<SelectionSpec>();
+        sspecarrvf.add(getSelectionSpec("folderToChildEntity"));
+        */
+        folderToChildEntity.getSelectSet().add(getSelectionSpec("folderToChildEntity"));
+        folderToChildEntity.getSelectSet().add(getSelectionSpec("datacenterToDatastore"));
+        folderToChildEntity.getSelectSet().add(getSelectionSpec("datacenterToVmFolder"));
+
+        
+
+        TraversalSpec datacenterToDatastore = new TraversalSpec();
+        datacenterToDatastore.setName("datacenterToDatastore");
+        datacenterToDatastore.setType("Datacenter");
+        datacenterToDatastore.setPath("datastore");
+        datacenterToDatastore.setSkip(Boolean.FALSE);
+
+        TraversalSpec datacenterToVmFolder = new TraversalSpec();
+        datacenterToVmFolder.setName("datacenterToVmFolder");
+        datacenterToVmFolder.setType("Datacenter");
+        datacenterToVmFolder.setPath("vmFolder");
+        datacenterToVmFolder.setSkip(Boolean.FALSE);
+        datacenterToVmFolder.getSelectSet().add(getSelectionSpec("folderToChildEntity"));
+
+        List<SelectionSpec> resultspec = new ArrayList<SelectionSpec>();
+        resultspec.add(hostToVM);
+        resultspec.add(folderToChildEntity);
+        resultspec.add(datacenterToDatastore);
+        resultspec.add(datacenterToVmFolder);
+
+        return resultspec;
+
     }
 
     public static SelectionSpec getSelectionSpec(String name) {
